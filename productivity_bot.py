@@ -1,11 +1,11 @@
 import json
 import os
-from datetime import datetime, timedelta
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackContext
+from datetime import datetime
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # Bot token - replace with your actual token
-TOKEN = "YOUR_BOT_TOKEN_HERE"
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
 # File to store user data
 DATA_FILE = "user_data.json"
@@ -161,6 +161,7 @@ Example:
 
 # Main function
 def main():
+    # Create the Application with modern syntax
     application = Application.builder().token(TOKEN).build()
     
     # Add handlers
@@ -173,6 +174,8 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     
     print("Productivity Bot is running...")
+    
+    # Start polling with modern method
     application.run_polling()
 
 if __name__ == "__main__":
