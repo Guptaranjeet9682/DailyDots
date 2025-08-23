@@ -2,9 +2,9 @@ import json
 import os
 from datetime import datetime
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Bot token - replace with your actual token
+# Bot token - Environment variable से लें या direct डालें
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
 # File to store user data
@@ -13,14 +13,17 @@ DATA_FILE = "user_data.json"
 # Load user data
 def load_data():
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
+        try:
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
     return {}
 
 # Save user data
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4)
 
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,54 +47,60 @@ Let's get productive! 🚀
 
 # Add task command
 async def add_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    task_text = " ".join(context.args)
-    
-    if not task_text:
-        await update.message.reply_text("Please provide a task. Example: /addtask Buy groceries")
-        return
-    
-    data = load_data()
-    if user_id not in data:
-        data[user_id] = {"tasks": []}
-    
-    task_id = len(data[user_id]["tasks"]) + 1
-    data[user_id]["tasks"].append({
-        "id": task_id,
-        "text": task_text,
-        "done": False,
-        "created_at": str(datetime.now())
-    })
-    
-    save_data(data)
-    await update.message.reply_text(f"✅ Task added! You now have {len(data[user_id]['tasks'])} task(s).")
+    try:
+        user_id = str(update.effective_user.id)
+        task_text = " ".join(context.args)
+        
+        if not task_text:
+            await update.message.reply_text("Please provide a task. Example: /addtask Buy groceries")
+            return
+        
+        data = load_data()
+        if user_id not in data:
+            data[user_id] = {"tasks": []}
+        
+        task_id = len(data[user_id]["tasks"]) + 1
+        data[user_id]["tasks"].append({
+            "id": task_id,
+            "text": task_text,
+            "done": False,
+            "created_at": str(datetime.now())
+        })
+        
+        save_data(data)
+        await update.message.reply_text(f"✅ Task added! You now have {len(data[user_id]['tasks'])} task(s).")
+    except Exception as e:
+        await update.message.reply_text("Error adding task. Please try again.")
 
 # Show tasks command
 async def my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    data = load_data()
-    
-    if user_id not in data or not data[user_id]["tasks"]:
-        await update.message.reply_text("📝 You don't have any tasks yet! Use /addtask to create one.")
-        return
-    
-    tasks_text = "📋 Your Tasks:\n\n"
-    for task in data[user_id]["tasks"]:
-        status = "✅" if task["done"] else "⏳"
-        tasks_text += f"{task['id']}. {status} {task['text']}\n"
-    
-    await update.message.reply_text(tasks_text)
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if user_id not in data or not data[user_id]["tasks"]:
+            await update.message.reply_text("📝 You don't have any tasks yet! Use /addtask to create one.")
+            return
+        
+        tasks_text = "📋 Your Tasks:\n\n"
+        for task in data[user_id]["tasks"]:
+            status = "✅" if task["done"] else "⏳"
+            tasks_text += f"{task['id']}. {status} {task['text']}\n"
+        
+        await update.message.reply_text(tasks_text)
+    except Exception as e:
+        await update.message.reply_text("Error loading tasks. Please try again.")
 
 # Mark task as done
 async def done_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    data = load_data()
-    
-    if user_id not in data or not data[user_id]["tasks"]:
-        await update.message.reply_text("No tasks to mark as done!")
-        return
-    
     try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if user_id not in data or not data[user_id]["tasks"]:
+            await update.message.reply_text("No tasks to mark as done!")
+            return
+        
         task_id = int(context.args[0])
         for task in data[user_id]["tasks"]:
             if task["id"] == task_id:
@@ -103,17 +112,19 @@ async def done_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Task not found!")
     except (IndexError, ValueError):
         await update.message.reply_text("Please provide a valid task ID. Example: /donetask 1")
+    except Exception as e:
+        await update.message.reply_text("Error marking task as done. Please try again.")
 
 # Delete task command
 async def del_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    data = load_data()
-    
-    if user_id not in data or not data[user_id]["tasks"]:
-        await update.message.reply_text("No tasks to delete!")
-        return
-    
     try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if user_id not in data or not data[user_id]["tasks"]:
+            await update.message.reply_text("No tasks to delete!")
+            return
+        
         task_id = int(context.args[0])
         data[user_id]["tasks"] = [task for task in data[user_id]["tasks"] if task["id"] != task_id]
         
@@ -125,19 +136,24 @@ async def del_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"🗑️ Task {task_id} deleted!")
     except (IndexError, ValueError):
         await update.message.reply_text("Please provide a valid task ID. Example: /deltask 1")
+    except Exception as e:
+        await update.message.reply_text("Error deleting task. Please try again.")
 
 # Clear all tasks
 async def clear_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    data = load_data()
-    
-    if user_id in data and data[user_id]["tasks"]:
-        task_count = len(data[user_id]["tasks"])
-        data[user_id]["tasks"] = []
-        save_data(data)
-        await update.message.reply_text(f"🧹 Cleared {task_count} tasks!")
-    else:
-        await update.message.reply_text("No tasks to clear!")
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if user_id in data and data[user_id]["tasks"]:
+            task_count = len(data[user_id]["tasks"])
+            data[user_id]["tasks"] = []
+            save_data(data)
+            await update.message.reply_text(f"🧹 Cleared {task_count} tasks!")
+        else:
+            await update.message.reply_text("No tasks to clear!")
+    except Exception as e:
+        await update.message.reply_text("Error clearing tasks. Please try again.")
 
 # Help command
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -159,9 +175,9 @@ Example:
     """
     await update.message.reply_text(help_text)
 
-# Main function
+# Main function - यही सबसे important part है
 def main():
-    # Create the Application with modern syntax
+    # Create application with builder pattern (new method)
     application = Application.builder().token(TOKEN).build()
     
     # Add handlers
@@ -173,7 +189,7 @@ def main():
     application.add_handler(CommandHandler("cleartasks", clear_tasks))
     application.add_handler(CommandHandler("help", help_command))
     
-    print("Productivity Bot is running...")
+    print("✅ Productivity Bot is running...")
     
     # Start polling with modern method
     application.run_polling()
